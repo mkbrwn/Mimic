@@ -1,0 +1,9 @@
+# Ignore all data files, but keep directory documentation tracked
+data/*
+!data/README.md
+!data/original_data/
+data/original_data/*
+!data/original_data/README.md
+!data/research_documents/
+data/research_documents/*
+!data/research_documents/README.md
