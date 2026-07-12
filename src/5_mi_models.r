@@ -3,6 +3,7 @@ library(mice)
 library(visdat)
 library(MASS)
 library(psfmi)
+library(writexl
 
 #source
 source("src/4_univariable_models.r")
@@ -65,13 +66,46 @@ model_selected_data = model_data |>
 
 #AUC 
 
-overall_step_model$RR_model_final
+    #Produce a data frame of the model selection results for each model
 
-overall_step_model$predictors_final
-#CRP_model in model_selected_data
-# with(model_selected_data, glm(ICU_admission ~ CRP, family = binomial)) |> pool() |> summary() |> print() # confirms the output is the same as mark_mi_selection
+    scalar_or_na = function(x, na_value = NA_real_) {
+        if (is.null(x) || length(x) == 0) {
+            return(na_value)
+        }
+        x[[1]]
+    }
 
-pool_performance(overall_step_model$RR_model_final)
+    all_model_results = list()
+    for (i in c("baseline", "biomarkers", "tissue_oxygenation", "microvascular_function", "overall")) {
+        model_name = paste0(i, "_step_model")
+        model_object = get0(model_name, ifnotfound = NULL)
+        model_name_performance = paste0(i, "_step_model_performance")
+        model_performance_object = get0(model_name_performance, ifnotfound = NULL)
 
-model_selected_data_performance$ROC_pooled
- model_selected_data_performance$R2_pooled
+        predictors_final_vec = if (is.null(model_object)) NULL else model_object$predictors_final
+
+        if (is.null(predictors_final_vec) || length(predictors_final_vec) == 0) {
+            n_predictors_final = NA_integer_
+            predictors_final = NA_character_
+        } else {
+            n_predictors_final = as.integer(length(predictors_final_vec))
+            predictors_final = paste(predictors_final_vec, collapse = ", ")
+        }
+
+        model_results = data.frame(
+            model = i,
+            outcome_variable = "ICU_admission",
+            n_predictors_final = n_predictors_final,
+            predictors_final = predictors_final,
+            AUC_pooled = scalar_or_na(if (is.null(model_performance_object)) NULL else model_performance_object$ROC_pooled, NA_real_),
+            R2_pooled = scalar_or_na(if (is.null(model_performance_object)) NULL else model_performance_object$R2_pooled, NA_real_),
+            Brier_score_pooled = scalar_or_na(if (is.null(model_performance_object)) NULL else model_performance_object$Brier_Scaled_pooled, NA_real_),
+            Hosmer_lemeshow_test_pooled = scalar_or_na(if (is.null(model_performance_object)) NULL else model_performance_object$HLtest_pooled, NA_real_) 
+                                    )
+
+        assign(paste0(i, "_model_results"), model_results)
+        all_model_results[[i]] = model_results
+    }
+
+    #Save the model results to an Excel file
+    write_xlsx(do.call(rbind, all_model_results), "output/tables/model_results.xlsx")
