@@ -11,9 +11,6 @@ library(pak)
 #univariable logistic regression for ICU admission
 univariable_logistic_table_complete = tbl_uvregression(
     data = model_data |>
-    select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
-    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Total vessel density (mm/mm^-2)", "Perfused vessel density",
-    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))) |>
     rename(
         MAP = `Mean arterial Pressure`,
         `Microvascular_flox_index` = `Microvascular flox index...53`,
@@ -22,7 +19,10 @@ univariable_logistic_table_complete = tbl_uvregression(
         Perfused_vessel_density = `Perfused vessel density`,
         Baseline_StO2_level = `Baseline StO2 level`,
         Peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
-     ) ,
+     ) |> 
+      select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Total vessel density (mm/mm^-2)", "Perfused vessel density",
+    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))),
     method = glm,
     y = `ICU_admission`,
     exponentiate = TRUE

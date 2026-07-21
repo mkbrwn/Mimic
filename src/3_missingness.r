@@ -44,4 +44,21 @@ png("output/figures/imputation/imputation_convergence.png")
 plot(imp)
 dev.off()
 
-#convergence monitoring
+## colinearity check for imputed data
+completed_data <- complete(imp, 1)
+numeric_data <- completed_data[, vapply(completed_data, is.numeric, logical(1)), drop = FALSE]
+corr_mat <- cor(numeric_data, use = "pairwise.complete.obs")
+
+png("output/figures/colinearity/correlogram.png", width = 1400, height = 1200, res = 150)
+if (requireNamespace("corrplot", quietly = TRUE)) {
+    corrplot::corrplot(
+        corr_mat,
+        method = "color",
+        type = "lower",
+        tl.col = "black",
+        tl.cex = 0.7
+    )
+} else {
+    heatmap(corr_mat, symm = TRUE, Colv = NA, Rowv = NA, scale = "none", margins = c(10, 10))
+}
+dev.off()

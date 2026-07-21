@@ -4,10 +4,7 @@ library(visdat)
 library(MASS)
 library(psfmi)
 library(writexl)
-
-# source
-source("src/4_univariable_models.r")
-source("src/0_functions.r") # see functions for mark_mi_selection function
+library(car) # for VIF calculation
 
 # list of variables for use in models 
     #baseline variables 
@@ -25,6 +22,10 @@ source("src/0_functions.r") # see functions for mark_mi_selection function
     #microvascular function
     microvascular_function_terms = c("Microvascular_flox_index", "Total_vessel_density", "Perfused_vessel_density")
     microvascular_function_formula = paste(sprintf("`%s`", microvascular_function_terms), collapse = " + ")
+
+# source
+source("src/4_univariable_models.r")
+source("src/0_functions.r") # see functions for mark_mi_selection function
 
 #mice cleanin and imputation of missing data
 model_selected_data = model_data |>
@@ -45,25 +46,57 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
 
 # Models 
     # basline_model 
-    baseline_model = glm(as.formula(paste("ICU_admission ~", baseline_formula)), data = model_data, family = binomial())
+    baseline_model = with(model_selected_data, glm(as.formula(paste("ICU_admission ~", baseline_formula)), family = binomial()))
     mark_mi_selection(model_selected_data, baseline_formula, "baseline_step_model")
 
     # biomarkers_model
-    biomarkers_model = glm(ICU_admission ~ biomarkers_formula, data = model_data, family = binomial())
+    biomarkers_model = with(model_selected_data, glm(as.formula(paste("ICU_admission ~", biomarkers_formula)), family = binomial()))
     mark_mi_selection(model_selected_data, biomarkers_formula, "biomarkers_step_model")
 
     # tissue oxygenation 
-    tissue_oxygenation_model = glm(ICU_admission ~ tissue_oxygenation_formula, data = model_data, family = binomial())
+    tissue_oxygenation_model = with(model_selected_data, glm(as.formula(paste("ICU_admission ~", tissue_oxygenation_formula)), family = binomial()))
     mark_mi_selection(model_selected_data, tissue_oxygenation_formula, "tissue_oxygenation_step_model")
 
     # microvascular function
-    microvascular_function_model = glm(ICU_admission ~ microvascular_function_formula, data = model_data, family = binomial())
+    microvascular_function_model = with(model_selected_data, glm(as.formula(paste("ICU_admission ~", microvascular_function_formula)), family = binomial()))
     mark_mi_selection(model_selected_data, microvascular_function_formula, "microvascular_function_step_model")
 
     #overall predictive model with all variables
-    mark_mi_selection(model_selected_data, 
-    paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, sep = " + "),
-    "overall_step_model")
+    overall_model = with(
+        model_selected_data,
+        glm(
+            as.formula(paste("ICU_admission ~", paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, sep = " + "))),
+            family = binomial()
+        )
+    )
+    mark_mi_selection(
+        model_selected_data,
+        paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, sep = " + "),
+        "overall_step_model"
+    )
+
+#makes table of full models 
+    pooled_full_model_sheets = list()
+    for (i in c("baseline_model", "biomarkers_model", "tissue_oxygenation_model", "microvascular_function_model", "overall_model")) {
+        model_object = get0(i, ifnotfound = NULL)
+
+        if (!is.null(model_object)) {
+            pooled_object = tryCatch(pool(model_object), error = function(e) NULL)
+
+            if (!is.null(pooled_object)) {
+                pooled_df = summary(pooled_object, conf.int = TRUE, exponentiate = TRUE)
+                pooled_df = data.frame(term = rownames(pooled_df), pooled_df, row.names = NULL)
+            } else {
+                pooled_df = data.frame(term = NA_character_, estimate = NA_real_)
+            }
+        } else {
+            pooled_df = data.frame(term = NA_character_, estimate = NA_real_)
+        }
+
+        pooled_full_model_sheets[[i]] = pooled_df
+    }
+
+    write_xlsx(pooled_full_model_sheets, "output/tables/mi_full_models_pooled.xlsx")
 
 #AUC 
 
@@ -110,3 +143,100 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
 
     #Save the model results to an Excel file
     write_xlsx(do.call(rbind, all_model_results), "output/tables/mi_model_selected_stepwise_results.xlsx")
+
+#Variance inflation factor (VIF) for each model pooled across imputations
+    extract_vif_df = function(fit_object) {
+        vif_object = tryCatch(car::vif(fit_object), error = function(e) NULL)
+
+        if (is.null(vif_object)) {
+            return(data.frame(term = NA_character_, vif = NA_real_, stringsAsFactors = FALSE))
+        }
+
+        if (is.matrix(vif_object)) {
+            vif_df = data.frame(term = rownames(vif_object), vif_object, row.names = NULL, check.names = FALSE)
+
+            # If GVIF output is returned, use adjusted GVIF for comparability.
+            if (all(c("GVIF", "Df") %in% names(vif_df))) {
+                vif_df$vif = vif_df$GVIF^(1 / (2 * vif_df$Df))
+            } else if ("GVIF^(1/(2*Df))" %in% names(vif_df)) {
+                vif_df$vif = vif_df[["GVIF^(1/(2*Df))"]]
+            } else {
+                vif_df$vif = as.numeric(vif_df[[1]])
+            }
+
+            return(vif_df[, c("term", "vif")])
+        }
+
+        data.frame(term = names(vif_object), vif = as.numeric(vif_object), row.names = NULL, stringsAsFactors = FALSE)
+    }
+
+    pooled_vif_sheets = list()
+    pooled_vif_summary_all = list()
+
+    for (i in c("baseline_model", "biomarkers_model", "tissue_oxygenation_model", "microvascular_function_model", "overall_model")) {
+        model_object = get0(i, ifnotfound = NULL)
+
+        if (is.null(model_object) || is.null(model_object$analyses) || length(model_object$analyses) == 0) {
+            pooled_vif_sheets[[i]] = data.frame(
+                imputation = NA_integer_,
+                term = NA_character_,
+                vif = NA_real_,
+                stringsAsFactors = FALSE
+            )
+
+            pooled_vif_summary_all[[i]] = data.frame(
+                model = i,
+                term = NA_character_,
+                n_imputations = NA_integer_,
+                mean_vif = NA_real_,
+                median_vif = NA_real_,
+                min_vif = NA_real_,
+                max_vif = NA_real_,
+                stringsAsFactors = FALSE
+            )
+
+            next
+        }
+
+        vif_by_imp = lapply(seq_along(model_object$analyses), function(imp_index) {
+            fit_object = model_object$analyses[[imp_index]]
+            vif_df = extract_vif_df(fit_object)
+            vif_df$imputation = imp_index
+            vif_df[, c("imputation", "term", "vif")]
+        })
+
+        vif_long = do.call(rbind, vif_by_imp)
+        pooled_vif_sheets[[i]] = vif_long
+
+        vif_long_valid = vif_long[!is.na(vif_long$term) & !is.na(vif_long$vif), , drop = FALSE]
+
+        if (nrow(vif_long_valid) == 0) {
+            pooled_vif_summary = data.frame(
+                model = i,
+                term = NA_character_,
+                n_imputations = NA_integer_,
+                mean_vif = NA_real_,
+                median_vif = NA_real_,
+                min_vif = NA_real_,
+                max_vif = NA_real_,
+                stringsAsFactors = FALSE
+            )
+        } else {
+            split_by_term = split(vif_long_valid$vif, vif_long_valid$term)
+            pooled_vif_summary = data.frame(
+                model = i,
+                term = names(split_by_term),
+                n_imputations = as.integer(vapply(split_by_term, length, integer(1))),
+                mean_vif = as.numeric(vapply(split_by_term, mean, numeric(1))),
+                median_vif = as.numeric(vapply(split_by_term, median, numeric(1))),
+                min_vif = as.numeric(vapply(split_by_term, min, numeric(1))),
+                max_vif = as.numeric(vapply(split_by_term, max, numeric(1))),
+                row.names = NULL,
+                stringsAsFactors = FALSE
+            )
+        }
+
+        pooled_vif_summary_all[[i]] = pooled_vif_summary
+    }
+    write_xlsx(do.call(rbind, pooled_vif_summary_all), "output/tables/mi_vif_pooled_summary.xlsx")
+ 
