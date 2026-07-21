@@ -3,9 +3,9 @@ library(mice)
 library(visdat)
 library(MASS)
 library(psfmi)
-library(writexl
+library(writexl)
 
-#source
+# source
 source("src/4_univariable_models.r")
 source("src/0_functions.r") # see functions for mark_mi_selection function
 
@@ -41,6 +41,7 @@ model_selected_data = model_data |>
         Peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
      ) |> 
     mice(m = 50, maxit = 5)
+print("MICE imputation completed. Imputed data is ready for multivariable logistic regression.")
 
 # Models 
     # basline_model 
@@ -108,4 +109,4 @@ model_selected_data = model_data |>
     }
 
     #Save the model results to an Excel file
-    write_xlsx(do.call(rbind, all_model_results), "output/tables/model_results.xlsx")
+    write_xlsx(do.call(rbind, all_model_results), "output/tables/mi_model_selected_stepwise_results.xlsx")

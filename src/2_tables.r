@@ -28,6 +28,6 @@ write_xlsx(
     path = "output/tables/demographics_tables.xlsx"
 )
 
-
+print("Demographics tables saved to output/tables/demographics_tables.xlsx")
 
 

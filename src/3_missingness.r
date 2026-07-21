@@ -6,51 +6,42 @@ source("src/1_data_cleaning.r")
 # library 
 library(mice)
 library(visdat)
+library(VIM)
+library(lattice)
+
+
+
+#These variables apear to indicate only for those admitted to ICU?? 
+data_for_imputation = model_data |>
+    select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Total vessel density (mm/mm^-2)", "Perfused vessel density",
+    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))) |>
+    rename(
+        MAP = `Mean arterial Pressure`,
+        `Microvascular_flox_index` = `Microvascular flox index...53`,
+        MRproADM = `MR-proADM`,     
+        Total_vessel_density = `Total vessel density (mm/mm^-2)`,
+        Perfused_vessel_density = `Perfused vessel density`,
+        Baseline_StO2_level = `Baseline StO2 level`,
+        Peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
+     ) 
 
 # explore missing data patterns
 png("output/figures/imputation/missing_data_pattern.png", width = 1200, height = 800)
-md.pattern(data |> select(where(~ any(is.na(.)))),
-rotate.names = TRUE)
+md.pattern(data_for_imputation, rotate.names = TRUE)
 dev.off()
 
 #imputation 
+imp <- mice(data_for_imputation, m = 50, maxit = 5)
 
-#These variables apear to indicate only for those admitted to ICU?? 
-    data_for_imputation = data |>
-        select(-any_of(c(
-            "Respiratory Support",
-            "Vasopressor/Inotrope Therapy",
-            "Continuous Sedation or a General Anaesthetic",
-            "Central Vascular Catheter",
-            "Emergency Surgery Initiated <4 Hours of Hospital Admission",
-            "Quantity (ml/actual body weight)",
-            "Admitted to ICU from Where",
-            "APACHE 2 Score",
-            "Did myself or someone else think pt need ICU?",
-            "Admission_date",
-            "Admitted to ICU Y/N",
-            "Vascular Occlusion Time...60",
+#density plots for imputed variables
+png("output/figures/imputation/imputed_density_plots.png")
+densityplot(imp, layout = c(3, 2))
+dev.off()
 
-            # colinear 
-            "qSOFA.Score",
-            "Final.NEWS2.score"
+#figures for impmutation diagnostics
+png("output/figures/imputation/imputation_convergence.png")
+plot(imp)
+dev.off()
 
-        )))
-
-
-# remove columns with no usable variation for imputation models
-data_for_imputation = data_for_imputation |>
-    select(where(~ dplyr::n_distinct(.x, na.rm = TRUE) > 1))
-
-pred <- quickpred(data_for_imputation, mincor = 0.4, minpuc = 0.5)
-
-Imputation_model <- futuremice(
-    data_for_imputation,
-    m = 5,
-    method = "cart",
-    predictorMatrix = pred,
-    n.core = 5,
-    maxit = 5,
-    parallelseed = 123
-)
-
+#convergence monitoring
