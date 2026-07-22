@@ -99,6 +99,10 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
 
 #AUC 
 
+
+
+
+
     #Produce a data frame of the model selection results for each model
 
     scalar_or_na = function(x, na_value = NA_real_) {
@@ -107,6 +111,54 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
         }
         x[[1]]
     }
+
+    # Produce a data frame of pooled performance results for each full model
+    full_model_specs = list(
+        baseline = list(formula = baseline_formula, predictors = baseline_terms),
+        biomarkers = list(formula = biomarkers_formula, predictors = biomarkers_terms),
+        tissue_oxygenation = list(formula = tissue_oxygenation_formula, predictors = tissue_oxygenation_terms),
+        microvascular_function = list(formula = microvascular_function_formula, predictors = microvascular_function_terms),
+        overall = list(
+            formula = paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, sep = " + "),
+            predictors = unique(c(baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms))
+        )
+    )
+
+    all_full_model_results = list()
+    for (i in names(full_model_specs)) {
+        model_spec = full_model_specs[[i]]
+
+        full_model_performance = tryCatch(
+            pool_performance(
+                data = complete(model_selected_data, "long", include = TRUE) |>
+                    subset(.imp != 0),
+                formula = as.formula(paste("ICU_admission ~", model_spec$formula)),
+                nimp = 50,
+                impvar = ".imp",
+                model_type = "binomial",
+                cal.plot = FALSE,
+                plot.method = "overlay"
+            ),
+            error = function(e) NULL
+        )
+
+        full_model_results = data.frame(
+            model = i,
+            outcome_variable = "ICU_admission",
+            n_predictors_full = as.integer(length(model_spec$predictors)),
+            predictors_full = paste(model_spec$predictors, collapse = ", "),
+            AUC_pooled = scalar_or_na(if (is.null(full_model_performance)) NULL else full_model_performance$ROC_pooled, NA_real_),
+            R2_pooled = scalar_or_na(if (is.null(full_model_performance)) NULL else full_model_performance$R2_pooled, NA_real_),
+            Brier_score_pooled = scalar_or_na(if (is.null(full_model_performance)) NULL else full_model_performance$Brier_Scaled_pooled, NA_real_),
+            Hosmer_lemeshow_test_pooled = scalar_or_na(if (is.null(full_model_performance)) NULL else full_model_performance$HLtest_pooled, NA_real_)
+        )
+
+        assign(paste0(i, "_full_model_results"), full_model_results)
+        all_full_model_results[[i]] = full_model_results
+    }
+
+    # Save full model pooled performance results
+    write_xlsx(do.call(rbind, all_full_model_results), "output/tables/mi_full_model_results.xlsx")
 
     all_model_results = list()
     for (i in c("baseline", "biomarkers", "tissue_oxygenation", "microvascular_function", "overall")) {
@@ -142,6 +194,8 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
 
     #Save the model results to an Excel file
     write_xlsx(do.call(rbind, all_model_results), "output/tables/mi_model_selected_stepwise_results.xlsx")
+
+
 
 #Variance inflation factor (VIF) for each model pooled across imputations
     extract_vif_df = function(fit_object) {
