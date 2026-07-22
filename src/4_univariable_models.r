@@ -6,7 +6,7 @@ source("src/1_data_cleaning.r")
 #library
 library(MASS)
 library(pak)
-# library(gtsummary4mice) ## install.packages("pak") pak::pak("jrob95/gtsummary4mice")
+library(gtsummary4mice) ## install.packages("pak") pak::pak("jrob95/gtsummary4mice")
 
 #univariable logistic regression for ICU admission
 univariable_logistic_table_complete = tbl_uvregression(
@@ -15,13 +15,11 @@ univariable_logistic_table_complete = tbl_uvregression(
         MAP = `Mean arterial Pressure`,
         `Microvascular_flox_index` = `Microvascular flox index...53`,
         MRproADM = `MR-proADM`,     
-        Total_vessel_density = `Total vessel density (mm/mm^-2)`,
-        Perfused_vessel_density = `Perfused vessel density`,
         Baseline_StO2_level = `Baseline StO2 level`,
-        Peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
-     ) |> 
-      select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
-    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Total vessel density (mm/mm^-2)", "Perfused vessel density",
+        rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`
+    ) |> 
+    select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM",
     "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))),
     method = glm,
     y = `ICU_admission`,
@@ -31,21 +29,19 @@ univariable_logistic_table_complete = tbl_uvregression(
 #mice cleanin and imputation of missing data
 model_selected_data_mice = model_data |>
     select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
-    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Total vessel density (mm/mm^-2)", "Perfused vessel density",
-    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))) |>
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Rate of deoxygenation (%/sec)...48",
+    "Baseline StO2 level"))) |>
     rename(
         MAP = `Mean arterial Pressure`,
         `Microvascular_flox_index` = `Microvascular flox index...53`,
+        rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`,
         MRproADM = `MR-proADM`,     
-        Total_vessel_density = `Total vessel density (mm/mm^-2)`,
-        Perfused_vessel_density = `Perfused vessel density`,
         Baseline_StO2_level = `Baseline StO2 level`,
-        Peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
-     ) |> 
+     )|> 
     mice(m = 50, maxit = 5)
 
 
-    univariable_logistic_table_mice = tbl_uvregression(
+univariable_logistic_table_mice = tbl_uvregression(
     data = model_selected_data_mice,
     method = glm,
     y = `ICU_admission`,

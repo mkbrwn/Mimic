@@ -16,11 +16,11 @@ library(car) # for VIF calculation
     biomarkers_formula = paste(sprintf("`%s`", biomarkers_terms), collapse = " + ")
     
     #tissue oxygenation 
-    tissue_oxygenation_terms = c("Baseline_StO2_level", "Peak_StO2_post_vascular_occlusion")
+    tissue_oxygenation_terms = c("Baseline_StO2_level", "rate_of_deoxygenation")
     tissue_oxygenation_formula = paste(sprintf("%s", tissue_oxygenation_terms), collapse = " + ")
 
     #microvascular function
-    microvascular_function_terms = c("Microvascular_flox_index", "Total_vessel_density", "Perfused_vessel_density")
+    microvascular_function_terms = c("Microvascular_flox_index")
     microvascular_function_formula = paste(sprintf("`%s`", microvascular_function_terms), collapse = " + ")
 
 # source
@@ -30,19 +30,18 @@ source("src/0_functions.r") # see functions for mark_mi_selection function
 #mice cleanin and imputation of missing data
 model_selected_data = model_data |>
     select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
-    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Total vessel density (mm/mm^-2)", "Perfused vessel density",
-    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))) |>
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Rate of deoxygenation (%/sec)...48",
+    "Baseline StO2 level"))) |>
     rename(
         MAP = `Mean arterial Pressure`,
         `Microvascular_flox_index` = `Microvascular flox index...53`,
+        rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`,
         MRproADM = `MR-proADM`,     
-        Total_vessel_density = `Total vessel density (mm/mm^-2)`,
-        Perfused_vessel_density = `Perfused vessel density`,
         Baseline_StO2_level = `Baseline StO2 level`,
-        Peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
      ) |> 
     mice(m = 50, maxit = 5)
 print("MICE imputation completed. Imputed data is ready for multivariable logistic regression.")
+
 
 # Models 
     # basline_model 
