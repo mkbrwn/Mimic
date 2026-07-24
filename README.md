@@ -84,3 +84,9 @@ Rscript src/2_tables.r
 - The scripts assume relative paths from the repository root.
 - Some modelling objects are assigned into the global environment by design.
 - The repository currently contains data-specific assumptions tied to the MMICS workbook schema.
+
+# Mark to do 
+- Add terms for 
+   - TISSUE oxygenation rate - reoxygenation rate, Peak StO2 after vascular occlusion
+   - Forest plot from univariable results - allows us to explore potential biomarkers for a model in the future. 
+   - trial inclusion of comorbidity and age for the overall model. 

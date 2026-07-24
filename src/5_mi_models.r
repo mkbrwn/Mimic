@@ -12,7 +12,7 @@ library(car) # for VIF calculation
     baseline_formula = paste(sprintf("`%s`", baseline_terms), collapse = " + ")
     
     #biomarkers 
-    biomarkers_terms = c("CRP", "Lactate", "HR", "Procalcitonin", "MRproADM")
+    biomarkers_terms = c("CRP", "Lactate", "Procalcitonin", "MRproADM")
     biomarkers_formula = paste(sprintf("`%s`", biomarkers_terms), collapse = " + ")
     
     #tissue oxygenation 
