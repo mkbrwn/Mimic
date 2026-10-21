@@ -16,27 +16,34 @@ univariable_logistic_table_complete = tbl_uvregression(
         `Microvascular_flox_index` = `Microvascular flox index...53`,
         MRproADM = `MR-proADM`,     
         Baseline_StO2_level = `Baseline StO2 level`,
-        rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`
+        rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`,
+        rate_of_reoxygenation = `Rate of reoxygenation (%/sec)...49`,
+        peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
     ) |> 
     select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
     "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM",
-    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))),
+    "Baseline StO2 level"))),
     method = glm,
     y = `ICU_admission`,
     exponentiate = TRUE
 )
-    
+
+#forest plot of univariable logistic regression odds ratios
+source("src/4_1_univariable_forestplot.r")
+
 #mice cleanin and imputation of missing data
 model_selected_data_mice = model_data |>
     select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
-    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Rate of deoxygenation (%/sec)...48",
-    "Baseline StO2 level"))) |>
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Rate of deoxygenation (%/sec)...48","Rate of deoxygenation (%/sec)...48", "Rate of reoxygenation (%/sec)...49",
+    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))) |>
     rename(
         MAP = `Mean arterial Pressure`,
         `Microvascular_flox_index` = `Microvascular flox index...53`,
         rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`,
+        rate_of_reoxygenation = `Rate of reoxygenation (%/sec)...49`,
         MRproADM = `MR-proADM`,     
         Baseline_StO2_level = `Baseline StO2 level`,
+        peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
      )|> 
     mice(m = 50, maxit = 5)
 
@@ -91,3 +98,5 @@ writexl::write_xlsx(
 )
 
 print("Univariable logistic regression results saved to output/tables/univariable_logistic_regression_results.xlsx")
+
+

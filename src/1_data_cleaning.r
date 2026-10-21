@@ -123,6 +123,19 @@ remove = c(
             "Final.NEWS2.score"
 )
 
+# rename comorbidities 
+data = data |> rename(
+  Patient_Sex = `Patient Sex`,
+  Frailty_Score = `Frailty Score`,
+  Chronic_Kidney_Disease = `Chronic Kidney Disease`,
+  Chronic_Respiratory_Disease = `Chronic Respiratory Disease`,
+  Cardiovascular_Disease = `Cardiovascular Disease`,
+  Peripheral_Vascular_Disease = `Peripheral Vascular Disease`,
+  Cancer_Diagnosis = `Cancer Diagnosis`,
+  Chronic_Liver_Disease = `Chronic Liver Disease`,
+  Chronic_Neurological_Disease = `Chronic Neurological Disease`
+)
+
 model_data = data |> select(-any_of(remove)) |>
     select(where(~ n_distinct(.x, na.rm = TRUE) > 1)) # remove columns with no usable variation for regression models
 

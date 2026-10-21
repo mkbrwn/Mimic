@@ -9,6 +9,7 @@ Key files:
 - `2_tables.r`: creates descriptive summary tables.
 - `3_missingness.r`: explores missingness and fits the imputation workflow.
 - `4_univariable_models.r`: runs univariable screening for ICU admission models.
+- `4_1_univariable_forestplot.r`: builds the grouped forest plot of univariable odds ratios; sourced from `4_univariable_models.r`.
 - `5_mi_models.r`: fits multiple-imputation models and pooled performance summaries.
 
 Notes:

@@ -87,6 +87,6 @@ Rscript src/2_tables.r
 
 # Mark to do 
 - Add terms for 
-   - TISSUE oxygenation rate - reoxygenation rate, Peak StO2 after vascular occlusion
+   - TISSUE oxygenation rate - reoxygenation rate, Peak StO2 after vascular occlusion - COMPLETED
    - Forest plot from univariable results - allows us to explore potential biomarkers for a model in the future. 
-   - trial inclusion of comorbidity and age for the overall model. 
+   - trial inclusion of comorbidity and age for the overall model. - the issue is with spaces in the names of the comorbidities. 

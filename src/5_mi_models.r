@@ -6,6 +6,10 @@ library(psfmi)
 library(writexl)
 library(car) # for VIF calculation
 
+# demographic variables - These are to be used in the full model. 
+    demographic_vars <- c("Patient_Sex","BMI","Frailty_Score","Hypertension","Diabetes","Chronic_Kidney_Disease","Chronic_Respiratory_Disease","Cardiovascular_Disease","Peripheral_Vascular_Disease","Cancer_Diagnosis","Chronic_Liver_Disease","Chronic_Neurological_Disease", "Immunosuppression")
+    demographic_formula <- paste(sprintf("`%s`", demographic_vars), collapse = " + ")
+
 # list of variables for use in models 
     #baseline variables 
     baseline_terms = c("SpO2", "RR", "HR", "MAP", "Temperature", "GCS")
@@ -16,8 +20,8 @@ library(car) # for VIF calculation
     biomarkers_formula = paste(sprintf("`%s`", biomarkers_terms), collapse = " + ")
     
     #tissue oxygenation 
-    tissue_oxygenation_terms = c("Baseline_StO2_level", "rate_of_deoxygenation")
-    tissue_oxygenation_formula = paste(sprintf("%s", tissue_oxygenation_terms), collapse = " + ")
+    tissue_oxygenation_terms = c("Baseline_StO2_level", "rate_of_deoxygenation", "rate_of_reoxygenation", "peak_StO2_post_vascular_occlusion")
+    tissue_oxygenation_formula = paste(sprintf("`%s`", tissue_oxygenation_terms), collapse = " + ")
 
     #microvascular function
     microvascular_function_terms = c("Microvascular_flox_index")
@@ -29,15 +33,18 @@ source("src/0_functions.r") # see functions for mark_mi_selection function
 
 #mice cleanin and imputation of missing data
 model_selected_data = model_data |>
-    select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, 
-    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Rate of deoxygenation (%/sec)...48",
-    "Baseline StO2 level"))) |>
+    select(any_of(c("ICU_admission", baseline_terms, biomarkers_terms, tissue_oxygenation_terms, microvascular_function_terms, demographic_vars,
+    "Mean arterial Pressure", "Microvascular flox index...53", "MR-proADM","Rate of deoxygenation (%/sec)...48", "Rate of reoxygenation (%/sec)...49",
+    "Baseline StO2 level", "Peak StO2 post vascular occlusion (%)"))) |>
     rename(
         MAP = `Mean arterial Pressure`,
         `Microvascular_flox_index` = `Microvascular flox index...53`,
         rate_of_deoxygenation = `Rate of deoxygenation (%/sec)...48`,
+        rate_of_reoxygenation = `Rate of reoxygenation (%/sec)...49`,
         MRproADM = `MR-proADM`,     
         Baseline_StO2_level = `Baseline StO2 level`,
+        peak_StO2_post_vascular_occlusion = `Peak StO2 post vascular occlusion (%)`
+
      ) |> 
     mice(m = 50, maxit = 5)
 print("MICE imputation completed. Imputed data is ready for multivariable logistic regression.")
@@ -64,13 +71,13 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
     overall_model = with(
         model_selected_data,
         glm(
-            as.formula(paste("ICU_admission ~", paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, sep = " + "))),
+            as.formula(paste("ICU_admission ~", paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, demographic_formula, sep = " + "))),
             family = binomial()
         )
     )
     mark_mi_selection(
         model_selected_data,
-        paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, sep = " + "),
+        paste(baseline_formula, biomarkers_formula, tissue_oxygenation_formula, microvascular_function_formula, demographic_formula, sep = " + "),
         "overall_step_model"
     )
 
@@ -98,10 +105,6 @@ print("MICE imputation completed. Imputed data is ready for multivariable logist
     write_xlsx(pooled_full_model_sheets, "output/tables/mi_full_models_pooled.xlsx")
 
 #AUC 
-
-
-
-
 
     #Produce a data frame of the model selection results for each model
 
